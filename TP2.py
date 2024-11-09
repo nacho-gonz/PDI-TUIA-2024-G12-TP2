@@ -42,46 +42,50 @@ plt.imshow(apertura, cmap='gray'),plt.show()
 
 contours, hierarchy = cv2.findContours(Aop, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-contornos_circulo = []
+contornos_circulo_areas = []
+contornos_solos = []
 
 for contour in contours:
     a = cv2.contourArea(contour)
     p_c = cv2.arcLength(contour, True)**2
     fdf = a/p_c
     if fdf > 0.062:
-        contornos_circulo.append((contour , a))
+        contornos_circulo_areas.append((contour , a))
+        contornos_solos.append(contour)
 
 
 
-cv2.drawContours(monedas_rgb, contornos_circulo,-1, (0, 255, 0), 2)
+cv2.drawContours(monedas_rgb, contornos_solos,-1, (0, 255, 0), 2)
 plt.imshow(monedas_rgb),plt.show()
 
 
 moneditas = cv2.cvtColor(monedas_copy, cv2.COLOR_BGR2RGB)
 
-contornos_ordenada = sorted(contornos_circulo, key=lambda x: x[1])
+contornos_ordenada = sorted(contornos_circulo_areas, key=lambda x: x[1])
 
-max_ancho = contornos_ordenada[-1][1]
-min_ancho = contornos_ordenada[0][1]
+max_area = contornos_ordenada[-1][1]
+min_area = contornos_ordenada[0][1]
 
-monedas_10_50 = 0
-monedas_10_peso = 0
-monedas_50 = 0
-monedas_peso = 0
 
-rel_50_10_max , rel_50_10_min = 0.619, 0.4
-rel_50_1_max , rel_50_1_min = 0.83, 0.75
-rel_1_10_max , rel_1_10_min = 0.74, 0.62
 
-if min_ancho / max_ancho < 0.85:
-    for moneda, ancho in contornos_circulo:
-        if rel_50_10_min <= ancho/max_ancho <= rel_50_10_max:
+if min_area / max_area < 0.85:
+    monedas_10_50 = 0
+    monedas_10_peso = 0
+    monedas_50 = 0
+    monedas_peso = 0
+
+    rel_50_10_max , rel_50_10_min = 0.61, 0.4
+    rel_50_1_max , rel_50_1_min = 0.83, 0.74
+    rel_1_10_max , rel_1_10_min = 0.73, 0.62
+
+    for moneda, area in contornos_circulo_areas:
+        if rel_50_10_min <= area/max_area <= rel_50_10_max:
             monedas_10_50 += 1
-        elif rel_50_1_min <= ancho/max_ancho <= rel_50_1_max:
+        elif rel_50_1_min <= area/max_area <= rel_50_1_max:
             monedas_peso += 1
-        elif rel_1_10_min <= ancho/max_ancho <= rel_1_10_max:
+        elif rel_1_10_min <= area/max_area <= rel_1_10_max:
             monedas_10_peso += 1
-        elif ancho/max_ancho >= 0.84:
+        elif area/max_area >= 0.84:
             if monedas_10_50 >= 1:
                 monedas_50 += 1
             elif monedas_10_peso >= 1:
@@ -90,4 +94,78 @@ if min_ancho / max_ancho < 0.85:
                 monedas_50 += 1
 
 else:
-    pass
+    monedas_10 = 0
+    monedas_50 = 0
+    monedas_peso_sola = 0
+    rel_recuadro_50_max , rel_recuadro_50_min = 0.97, 0.65
+
+    for contorno in contornos_solos:
+        x, y, w, h = cv2.boundingRect(contorno)
+
+        imagen_recortada = moneditas[y-10:y+h, x:x+w]
+
+        plt.imshow(imagen_recortada), plt.show()
+
+        moneditas_cielab = cv2.cvtColor(imagen_recortada, cv2.COLOR_BGR2LAB)
+
+        lab_monedita, a_monedita, b_monedita = cv2.split(moneditas_cielab)
+
+        # plt.imshow(b_monedita, cmap='gray'), plt.show()
+
+        retval, bin_h_monedita = cv2.threshold(b_monedita, 115, 255, cv2.THRESH_BINARY)
+        bin_h_monedita_not = np.bitwise_not(bin_h_monedita)
+        # plt.imshow(bin_h_monedita_not, cmap='gray'), plt.show()
+
+        B_monedita = cv2.getStructuringElement(cv2.MORPH_RECT, (10,10))
+        Aclau_monedita = cv2.morphologyEx(bin_h_monedita_not, cv2.MORPH_CLOSE, B_monedita)
+
+        B_monedita = cv2.getStructuringElement(cv2.MORPH_RECT, (15,15))
+        Aop_monedita = cv2.morphologyEx(Aclau_monedita, cv2.MORPH_OPEN, B_monedita)
+
+        B_monedita = cv2.getStructuringElement(cv2.MORPH_RECT, (15,15))
+        clau_final = cv2.morphologyEx(Aop_monedita, cv2.MORPH_CLOSE, B_monedita)
+
+        # plt.imshow(clau_final, cmap='gray'), plt.show()
+
+
+        contours_monedita, hierarchy = cv2.findContours(clau_final, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours_monedita) == 0:
+            monedas_10 += 1
+        else:
+            area_moneda = cv2.contourArea(contours_monedita[0])
+            area_recuadro = w*h
+            if rel_recuadro_50_min < area_moneda/area_recuadro < rel_recuadro_50_max:
+                monedas_50 += 1
+            else:
+                monedas_peso_sola += 1
+
+monedas_copy_rgb = monedas_rgb.copy()
+
+blur = cv2.GaussianBlur(monedas, (361, 361), 0)
+
+normalized_image = cv2.subtract(monedas, blur)
+
+gray = cv2.cvtColor(normalized_image, cv2.COLOR_BGR2GRAY)
+
+binnario = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY, 85, 10)
+
+B = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
+Aop = cv2.morphologyEx(binnario, cv2.MORPH_OPEN, B)
+
+asd = cv2.medianBlur(Aop, 3)
+
+plt.imshow(asd ,cmap='gray'), plt.show()
+
+padres , herac = cv2.findContours(Aop, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_SIMPLE)
+cv2.drawContours(monedas_copy_rgb, padres,-1, (0, 255, 0), 2)
+
+plt.imshow(monedas_copy_rgb), plt.show()
+# for papa in padres:
+
+plt.imshow(Aop ,cmap='gray'), plt.show()
+
+
+print(monedas_10)
+
+plt.imshow(monedas_rgb),plt.show()
