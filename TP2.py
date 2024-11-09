@@ -26,8 +26,6 @@ retval, bin_s = cv2.threshold(s_smooth, 14, 255, cv2.THRESH_BINARY)
 
 retval, bin_h = cv2.threshold(h, 60, 255, cv2.THRESH_BINARY)
 
-plt.imshow(bin_s, cmap='gray'),plt.show()
-
 B = cv2.getStructuringElement(cv2.MORPH_RECT, (40,40))
 Aclau = cv2.morphologyEx(bin_s, cv2.MORPH_CLOSE, B)
 
@@ -38,35 +36,26 @@ Aop = cv2.morphologyEx(Aclau, cv2.MORPH_OPEN, B)
 kernel = np.ones((3, 3), np.uint8)
 apertura = cv2.morphologyEx(Aop, cv2.MORPH_OPEN, kernel)
 
-plt.imshow(apertura, cmap='gray'),plt.show()
-
 contours, hierarchy = cv2.findContours(Aop, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-contornos_circulo_areas = []
+contornos_circulo_areas  = []
 contornos_solos = []
+
 
 for contour in contours:
     a = cv2.contourArea(contour)
     p_c = cv2.arcLength(contour, True)**2
     fdf = a/p_c
     if fdf > 0.062:
-        contornos_circulo_areas.append((contour , a))
+        contornos_circulo_areas .append((contour, a))
         contornos_solos.append(contour)
-
-
-
-cv2.drawContours(monedas_rgb, contornos_solos,-1, (0, 255, 0), 2)
-plt.imshow(monedas_rgb),plt.show()
-
 
 moneditas = cv2.cvtColor(monedas_copy, cv2.COLOR_BGR2RGB)
 
-contornos_ordenada = sorted(contornos_circulo_areas, key=lambda x: x[1])
+contornos_ordenada = sorted(contornos_circulo_areas , key=lambda x: x[1])
 
 max_area = contornos_ordenada[-1][1]
 min_area = contornos_ordenada[0][1]
-
-
 
 if min_area / max_area < 0.85:
     monedas_10_50 = 0
@@ -92,11 +81,15 @@ if min_area / max_area < 0.85:
                 monedas_peso +=1
             elif monedas_peso >= 1:
                 monedas_50 += 1
+    if monedas_10_peso == 0:
+        monedas_10_peso = monedas_10_50
+    elif monedas_10_50 == 0:
+        monedas_10_50 = monedas_10_peso
 
 else:
-    monedas_10 = 0
+    monedas_10_peso = 0
     monedas_50 = 0
-    monedas_peso_sola = 0
+    monedas_peso = 0
     rel_recuadro_50_max , rel_recuadro_50_min = 0.97, 0.65
 
     for contorno in contornos_solos:
@@ -110,11 +103,8 @@ else:
 
         lab_monedita, a_monedita, b_monedita = cv2.split(moneditas_cielab)
 
-        # plt.imshow(b_monedita, cmap='gray'), plt.show()
-
         retval, bin_h_monedita = cv2.threshold(b_monedita, 115, 255, cv2.THRESH_BINARY)
         bin_h_monedita_not = np.bitwise_not(bin_h_monedita)
-        # plt.imshow(bin_h_monedita_not, cmap='gray'), plt.show()
 
         B_monedita = cv2.getStructuringElement(cv2.MORPH_RECT, (10,10))
         Aclau_monedita = cv2.morphologyEx(bin_h_monedita_not, cv2.MORPH_CLOSE, B_monedita)
@@ -125,47 +115,16 @@ else:
         B_monedita = cv2.getStructuringElement(cv2.MORPH_RECT, (15,15))
         clau_final = cv2.morphologyEx(Aop_monedita, cv2.MORPH_CLOSE, B_monedita)
 
-        # plt.imshow(clau_final, cmap='gray'), plt.show()
-
-
         contours_monedita, hierarchy = cv2.findContours(clau_final, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         if len(contours_monedita) == 0:
-            monedas_10 += 1
+            monedas_10_peso += 1
         else:
             area_moneda = cv2.contourArea(contours_monedita[0])
             area_recuadro = w*h
             if rel_recuadro_50_min < area_moneda/area_recuadro < rel_recuadro_50_max:
                 monedas_50 += 1
             else:
-                monedas_peso_sola += 1
+                monedas_peso += 1
 
-monedas_copy_rgb = monedas_rgb.copy()
-
-blur = cv2.GaussianBlur(monedas, (361, 361), 0)
-
-normalized_image = cv2.subtract(monedas, blur)
-
-gray = cv2.cvtColor(normalized_image, cv2.COLOR_BGR2GRAY)
-
-binnario = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY, 85, 10)
-
-B = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
-Aop = cv2.morphologyEx(binnario, cv2.MORPH_OPEN, B)
-
-asd = cv2.medianBlur(Aop, 3)
-
-plt.imshow(asd ,cmap='gray'), plt.show()
-
-padres , herac = cv2.findContours(Aop, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_SIMPLE)
-cv2.drawContours(monedas_copy_rgb, padres,-1, (0, 255, 0), 2)
-
-plt.imshow(monedas_copy_rgb), plt.show()
-# for papa in padres:
-
-plt.imshow(Aop ,cmap='gray'), plt.show()
-
-
-print(monedas_10)
-
-plt.imshow(monedas_rgb),plt.show()
+print(monedas_50, monedas_peso, monedas_10_peso)
