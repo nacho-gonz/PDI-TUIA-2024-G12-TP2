@@ -1,13 +1,15 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+import os
 
 def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
     """
     Función que busca y diferencia entre los tipos de monedas de 1 peso, 50 centavos y 10 centavos, devolviendo la cantidad de cada uno
 
     También, busca y diferencia la cantidad de puntos en la cara superior de distintos dados, devolviendo la cantidad de puntos de cada dado
+
+    Y Muestra una imagen con los contornos encontrados de los dados y las monedas 
     ----------------------------------------------------------------------------------------------------------------------------------------
     Parámetros
 
@@ -15,6 +17,9 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
     """
 
     monedas_copy = monedas.copy()
+
+    # Imagen donde se van a mostrar los contornos de las monedas y los dados
+    moenda_contornos = cv2.cvtColor(monedas.copy(), cv2.COLOR_BGR2RGB)
 
     # Se suaviza la imagen para obtener los detalles de los objetos de manera más clara
     monedas_blur = cv2.blur(monedas, (5,5))
@@ -40,7 +45,7 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
     monedas_apertura = cv2.morphologyEx(monedas_clausura, cv2.MORPH_OPEN, B)
 
     # Se buscan los contornos
-    contornos_objetos, _ = cv2.findContours(monedas_apertura, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    contornos_objetos, _ = cv2.findContours(monedas_apertura, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
     # Se crea una imagen para así luego poder dibujar los objetos sobrantes
     mascara_zeros = np.zeros_like(monedas_apertura, dtype=np.uint8)
@@ -59,6 +64,9 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
         if factor_de_forma > 0.062:
             contornos_monedas_areas.append((contorno, area_objetos))
             contornos_monedas_solos.append(contorno)
+
+            # Se relaiza el contorno de las monedas
+            cv2.drawContours(moenda_contornos, contorno, -1, (255,0,0),4)
         else:
             cv2.drawContours(mascara_zeros, [contorno], -1, 255, thickness=cv2.FILLED)
 
@@ -71,8 +79,8 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
     dado_apertura = cv2.morphologyEx(dado_clausura, cv2.MORPH_OPEN, B)
 
     # Se buscan los contornos
-    dados_contornos, _ = cv2.findContours(dado_apertura, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+    dados_contornos, _ = cv2.findContours(dado_apertura, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #cv2.drawContours(moenda_contornos, dados_contornos, -1, (0,255,0),4)
     moneda_copia_dados = monedas.copy()
 
     lista_cantidad_dados_puntos = []
@@ -81,6 +89,8 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
     for dado in dados_contornos:
         x, y, w, h = cv2.boundingRect(dado)
 
+        # Se relaiza el contorno cuadrado de los dados
+        cv2.rectangle(moenda_contornos, (x-5,y-5),(x+w+5,y+h+5),(0,255,0),4)
         # Se recorta la de la imagen original, el área que fue recortada usando boundingbox, agregando un pequeño margen de error
         dado_recortado = moneda_copia_dados[y-10:y+h+10, x-10:x+w+10]
 
@@ -106,7 +116,7 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
                 cantidad_de_puntos_en_dado+=1 
 
         lista_cantidad_dados_puntos.append(cantidad_de_puntos_en_dado)
-
+    plt.imshow(moenda_contornos), plt.show()
     #-------------------------------------------------------------------------------------------------------------------------------------
 
     # Proceso para encontrar y diferenciar las monedas
@@ -326,13 +336,13 @@ def mostrar_patentes(autos: list[cv2.typing.MatLike])-> None:
 
 
 autos = []
-for i in range(1,13):
-    if i < 10:
-        autos.append(cv2.imread(f'patentes/img0{i}.png'))
-    else:
-        autos.append(cv2.imread(f'patentes/img{i}.png'))
 
 monedas = cv2.imread('monedas.jpg')
+
+num_elementos = len(os.listdir('./patentes'))
+
+for i in range(1,num_elementos+1):
+    autos.append(cv2.imread(f'./patentes/img{i}.png'))
 
 
 # Menu
