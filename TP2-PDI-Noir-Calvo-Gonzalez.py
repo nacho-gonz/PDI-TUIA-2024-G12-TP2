@@ -172,8 +172,8 @@ def detectar_monedas_y_dados(monedas: cv2.typing.MatLike)-> str:
         # Rango de proporciones de área de las monedas de 50 centavos
         rel_recuadro_50_max , rel_recuadro_50_min = 0.97, 0.65
 
-        # Se trabaja sobre la primera moneda, ya que llegado a este punto, todas las monedas son iguales
-        contorno_moneda = contornos_monedas_solos[0]
+        # Se trabaja sobre la mayor moneda, ya que llegado a este punto, todas las monedas son iguales y la mayor suele ser la que presenta una mejor y más precisa forma
+        contorno_moneda = contornos_monedas_ordenado[-1][0]
         x, y, w, h = cv2.boundingRect(contorno_moneda)
 
         # Se recorta la imagen y se convierte en espacio CIElab
