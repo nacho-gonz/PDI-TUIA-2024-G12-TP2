@@ -4,7 +4,7 @@
 
 - *1* **clonar el repositorio**
 
-git clone https://github.com/nacho-gonz/PDI-TUIA-2024-G12.git
+git clone https://github.com/nacho-gonz/PDI-TUIA-2024-G12-TP2.git
 
 - *2* **Instalar las librerias necesarias**:
   - opencv: mediante pip: *pip install opencv-contrib-Python*
